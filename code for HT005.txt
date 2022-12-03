@@ -1,0 +1,70 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+uint8_t temprature_sens_read();
+#ifdef __cplusplus
+}
+#endif
+uint8_t temprature_sens_read();
+#include <WiFi.h>
+#include "DHT.h"
+#include "ThingSpeak.h"
+char* ssid = "itsme"; //enter SSID
+char* passphrase = "01234567"; // enter the password
+WiFiServer server(80);
+WiFiClient client;
+unsigned long myChannelNumber = 1;
+const char * myWriteAPIKey = "HN9CBJTHQRNQOR3Q";
+unsigned long lastTime = 0;
+unsigned long timerDelay = 1000;
+#define DHTPIN 4 
+#define DHTTYPE DHT11 
+DHT dht(DHTPIN, DHTTYPE);
+void setup()
+{
+Serial.begin(115200); //Initialize serial
+Serial.print("Connecting to ");
+Serial.println(ssid);
+WiFi.begin(ssid, passphrase);
+while (WiFi.status() != WL_CONNECTED) {
+delay(500);
+Serial.print(".");
+}
+Serial.println("");
+Serial.println("WiFi connected.");
+Serial.println("IP address: ");
+Serial.println(WiFi.localIP());
+server.begin();
+dht.begin();
+ThingSpeak.begin(client); // Initialize ThingSpeak
+}
+void loop()
+{
+if ((millis() - lastTime) > timerDelay)
+{
+delay(2500);
+float h = dht.readHumidity();
+float t = dht.readTemperature();
+float f = dht.readTemperature(true);
+if (isnan(h) || isnan(t) || isnan(f)) {
+Serial.println(F("Failed to read from DHT sensor!"));
+return;
+}
+Serial.print("Temperature (ºC): ");
+Serial.print(t);
+Serial.println("ºC");
+Serial.print("Humidity");
+Serial.println(h);
+ThingSpeak.setField(1, h);
+ThingSpeak.setField(2, t);
+int x = ThingSpeak.writeFields(myChannelNumber,
+myWriteAPIKey);
+if(x == 200){
+Serial.println("Channel update successful.");
+}
+else{
+Serial.println("Problem updating channel. HTTP error code " + String(x));
+}
+lastTime = millis();
+}
+}
